@@ -1,10 +1,10 @@
 from django.shortcuts import render, get_object_or_404
 from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status, generics
-from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework import status
 from .models import Book
 from .serializers import BookSerializer
 
@@ -82,4 +82,25 @@ class BookListView(generics.ListAPIView):
         return super().get(*args, **kwargs)
 
 
+class BorrowBookView(APIView):
+    """Allows a user to borrow a book."""
+    permission_classes = [IsAuthenticated]
 
+    @swagger_auto_schema(
+        responses={200: BookSerializer()},
+        operation_summary="Borrow a book.",
+        operation_description="Set the borrower of the book to the authenticated user.")
+
+    def post(self, request, pk):
+        book = get_object_or_404(Book, pk=pk)
+
+        # Check if the book already has a borrower
+        if book.borrower:
+            return Response({"error": "This book is already borrowed."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Set the borrower as the authenticated user
+        book.borrower = request.user
+        book.save()
+
+        serializer = BookSerializer(book)
+        return Response(serializer.data, status=status.HTTP_200_OK)
